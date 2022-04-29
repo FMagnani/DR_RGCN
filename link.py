@@ -16,8 +16,10 @@ from dgl.dataloading import GraphDataLoader
 from link_utils import preprocess, SubgraphIterator, calc_mrr
 from model import RGCN
 
+
 class LinkPredict(nn.Module):
-    def __init__(self, in_dim, num_rels, h_dim=500, num_bases=100, dropout=0.2, reg_param=0.01):
+                                         # h 500 num bases 100
+    def __init__(self, in_dim, num_rels, h_dim=50, num_bases=10, dropout=0.2, reg_param=0.01):
         super(LinkPredict, self).__init__()
         self.rgcn = RGCN(in_dim, h_dim, h_dim, num_rels * 2, regularizer="bdd",
                          num_bases=num_bases, dropout=dropout, self_loop=True)
@@ -49,15 +51,25 @@ class LinkPredict(nn.Module):
         return predict_loss + self.reg_param * reg_loss
 
 def main(args):
-    data = DRKGDataset(reverse=False, raw_dir="/home/federico/.dgl/")
+
+    # Set the absolute path to the dataset folder. The dataset should be formatted into the following files:
+    # train.txt, test.txt, valid.txt, entities.dict, relations.dict (all these are tsv)
+    raw_dir = "/mnt/raid1/fede/"
+
+    data = DRKGDataset(reverse=False, raw_dir=raw_dir)
     graph = data[0]
     num_nodes = graph.num_nodes()
     num_rels = data.num_rels
 
-    train_g, test_g = preprocess(graph, num_rels)
+    train_g, test_g, valid_g = preprocess(graph, num_rels)
     test_nids = th.arange(0, num_nodes)
     test_mask = graph.edata['test_mask']
-    subg_iter = SubgraphIterator(train_g, num_rels, args.edge_sampler, sample_size=1000, num_epochs=10) # Default is sample_size 30000 and num_epochs 6000
+
+    # The external validation triplets
+    valid_nids = th.arange(0, valid_g.num_nodes())
+    
+    # Set here the batch size as sample_size, and the epochs for training
+    subg_iter = SubgraphIterator(train_g, num_rels, args.edge_sampler, sample_size=10, num_epochs=2) # Default is sample_size 30000 and num_epochs 6000
     dataloader = GraphDataLoader(subg_iter, batch_size=1, collate_fn=lambda x: x[0])
 
     # Prepare data for metric computation
@@ -90,8 +102,15 @@ def main(args):
         loss.backward()
         nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0) # clip gradients
         optimizer.step()
-
+        
         print("Epoch {:04d} | Loss {:.4f} | Best MRR {:.4f}".format(epoch, loss.item(), best_mrr))
+
+    model = model.cpu() # test on CPU
+    model.eval()
+    embed = model(valid_g, valid_nids)
+    print(embed)
+    print(embed.shape)
+
 
 """
 #        if (epoch + 1) % 500 == 0:
@@ -122,6 +141,16 @@ def main(args):
     calc_mrr(embed, model.w_relation, test_mask, triplets,
              batch_size=500, eval_p=args.eval_protocol)
 """
+    
+    # use best model checkpoint
+#    checkpoint = th.load(model_state_file)
+#    model = model.cpu() # test on CPU
+#    model.eval()
+#    model.load_state_dict(checkpoint['state_dict'])
+#    print("Using best epoch: {}".format(checkpoint['epoch']))
+#    embed = model(valid_g, valid_nids)
+#    results = compute_results(embed)
+#    results.to_csv(...)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='RGCN for link prediction')

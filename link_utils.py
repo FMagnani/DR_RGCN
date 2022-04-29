@@ -7,6 +7,9 @@ import numpy as np
 import torch as th
 import dgl
 
+import pandas as pd
+
+
 # Utility function for building training and testing graphs
 
 def get_subset_g(g, mask, num_rels, bidirected=False):
@@ -32,7 +35,11 @@ def preprocess(g, num_rels):
     test_g = get_subset_g(g, g.edata['train_mask'], num_rels, bidirected=True)
     test_g.edata['norm'] = dgl.norm_by_dst(test_g).unsqueeze(-1)
 
-    return train_g, test_g
+    # Get valid graph
+    valid_g = get_subset_g(g, g.edata['val_mask'], num_rels, bidirected=False)
+    valid_g.edata['norm'] = dgl.norm_by_dst(valid_g).unsqueeze(-1)
+
+    return train_g, test_g, valid_g
 
 class GlobalUniform:
     def __init__(self, g, sample_size):
