@@ -13,7 +13,7 @@ import torch.nn.functional as F
 from load_drkg import DRKGDataset
 from dgl.dataloading import GraphDataLoader
 
-from link_utils import preprocess, SubgraphIterator, calc_mrr
+from link_utils import preprocess, SubgraphIterator, calc_mrr, compute_ranking
 from model import RGCN
 
 
@@ -108,8 +108,12 @@ def main(args):
     model = model.cpu() # test on CPU
     model.eval()
     embed = model(valid_g, valid_nids)
-    print(embed)
-    print(embed.shape)
+    
+    rel_T = model.w_relation[29,:]
+    rel_CtD = model.w_relation[49,:]
+    
+    rankings = compute_ranking(embed, rel_T, rel_CtD)
+
 
 
 """

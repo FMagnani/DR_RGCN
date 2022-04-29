@@ -9,6 +9,27 @@ import dgl
 
 import pandas as pd
 
+def compute_ranking(embed, emb_T, emb_CtD):
+
+    valid_path = "/mnt/raid1/fede/DRKG/"
+    valid_df = pd.read_csv(valid_path+"valid_raw.txt", sep='\t', index_col=None, names = ["head_idx", "head_raw", "tail_idx", "tail_raw", "rel"])
+    
+    half_df = valid_df[:][ valid_df["rel"]=="T" ]
+    
+    scores = []
+    for head_idx, tail_idx in zip(half_df["head_idx"], half_df["tail_idx"]):
+        triplet_emb = embed[head_idx] * emb_T * embed[tail_idx]
+        score = th.sum(triplet_emb, dim=-1).cpu().detach().numpy()
+        scores.append(score)
+        
+    for head_idx, tail_idx in zip(half_df["head_idx"], half_df["tail_idx"]):
+        triplet_emb = embed[head_idx] * emb_CtD * embed[tail_idx]
+        score = th.sum(triplet_emb, dim=-1).cpu().detach().numpy()
+        scores.append(score)        
+        
+    valid_df["score"] = scores
+
+    return valid_df
 
 # Utility function for building training and testing graphs
 
