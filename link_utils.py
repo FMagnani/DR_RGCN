@@ -9,7 +9,9 @@ import dgl
 
 import pandas as pd
 
-def compute_ranking(embed, emb_T, emb_CtD):
+
+
+def compute_hits(embed, emb_T, emb_CtD):
 
     valid_path = "/mnt/raid1/fede/DRKG/"
     valid_df = pd.read_csv(valid_path+"valid_raw.txt", sep='\t', index_col=None, names = ["head_idx", "head_raw", "tail_idx", "tail_raw", "rel"])
@@ -29,7 +31,55 @@ def compute_ranking(embed, emb_T, emb_CtD):
         
     valid_df["score"] = scores
 
-    return valid_df
+    valid_df["CompoundId"] = valid_df["head_raw"].str.rsplit(pat=":", n=1, expand=True)[1]
+    valid_df = valid_df.sort_values(by="score", axis=0)
+    valid_df.reset_index(inplace=True)
+    valid_df = valid_df.rename(columns={"index":"Rank"})
+
+    clinical_trial_id = ["DB00746","DB05511","DB00678","DB01050","DB12466","DB08877","DB01234","DB01041","DB00302","DB06273","DB11767","DB12580","DB11720","DB00198","DB11817","DB00020",
+    "DB00608","DB00026","DB12534","DB00207","DB14066","DB00811","DB08895","DB09036","DB09035","DB00435","DB01394","DB14761","DB01611","DB01257","DB00959"]
+
+    clinical_trial_name = ["Deferoxamine","Piclidenoson","Losartan","Ibuprofen","Favipiravir","Ruxolitinib","Dexamethasone","Thalidomide","Tranexamic acid","Tocilizumab","Sarilumab",
+    "Tradipitant","Angiotensin_1-7","Oseltamivir","Baricitinib","Sargramostim","Chloroquine","Anakinra","Mavrilimumab","Azithromycin","Tetrandrine","Ribavirin","Tofacitinib","Siltuximab",
+    "Nivolumab","Nitric Oxide","Colchicine","Remdesivir","Hydroxychloroquine","Eculizumab","Methylprednisolone"]
+
+    # Here you have
+    #    CompoundId     CompoundName
+    #     DB0056         Deferoasko
+    #     DB0036          Ciullok
+    #      ...              ...
+    clinical_trial_df = pd.DataFrame()
+    clinical_trial_df["CompoundId"] = pd.Series(clinical_trial_id)
+    clinical_trial_df["CompoundName"] = pd.Series(clinical_trial_name)    
+    
+    # You merge but you only retain the entries in common
+    # So you basically just filtered the initial "valid_df"
+    results = pd.merge(
+        clinical_trial_df, valid_df,
+        how='inner',
+        on='CompoundId',
+        sort=False,
+        copy=False
+    )
+
+    results = results.sort_values(by="Rank", axis=0)
+    results.reset_index(inplace=True)
+    results = results[["CompoundName", "CompoundId", "Rank", "rel", "tail_raw", "score"]]
+
+    results_hits10 = results[results["Rank"]<10]
+    results_hits50 = results[results["Rank"]<50]
+    results_hits100 = results[results["Rank"]<100]
+
+    hits_log = {
+        "hits10": len(results_hits10.index),
+        "hits50": len(results_hits50.index),
+        "hits100": len(results_hits100.index)
+    }
+    print(hits_log)
+
+    results_hits100[["CompoundName", "Rank", "score", "tail_raw", "rel"]].to_csv("HitsAt100.csv")
+
+    return 0
 
 # Utility function for building training and testing graphs
 

@@ -13,13 +13,13 @@ import torch.nn.functional as F
 from load_drkg import DRKGDataset
 from dgl.dataloading import GraphDataLoader
 
-from link_utils import preprocess, SubgraphIterator, calc_mrr, compute_ranking
+from link_utils import preprocess, SubgraphIterator, calc_mrr, compute_hits
 from model import RGCN
 
 
 class LinkPredict(nn.Module):
-                                         # h 500 num bases 100
-    def __init__(self, in_dim, num_rels, h_dim=50, num_bases=10, dropout=0.2, reg_param=0.01):
+                                  # def: h dim 500, num bases 100
+    def __init__(self, in_dim, num_rels, h_dim=500, num_bases=100, dropout=0.2, reg_param=0.01):
         super(LinkPredict, self).__init__()
         self.rgcn = RGCN(in_dim, h_dim, h_dim, num_rels * 2, regularizer="bdd",
                          num_bases=num_bases, dropout=dropout, self_loop=True)
@@ -69,7 +69,8 @@ def main(args):
     valid_nids = th.arange(0, valid_g.num_nodes())
     
     # Set here the batch size as sample_size, and the epochs for training
-    subg_iter = SubgraphIterator(train_g, num_rels, args.edge_sampler, sample_size=10, num_epochs=2) # Default is sample_size 30000 and num_epochs 6000
+                                                            # Default: sample_size 30000, num_epochs 6000
+    subg_iter = SubgraphIterator(train_g, num_rels, args.edge_sampler, sample_size=10000, num_epochs=1000) 
     dataloader = GraphDataLoader(subg_iter, batch_size=1, collate_fn=lambda x: x[0])
 
     # Prepare data for metric computation
@@ -105,56 +106,42 @@ def main(args):
         
         print("Epoch {:04d} | Loss {:.4f} | Best MRR {:.4f}".format(epoch, loss.item(), best_mrr))
 
-    model = model.cpu() # test on CPU
-    model.eval()
-    embed = model(valid_g, valid_nids)
-    
-    rel_T = model.w_relation[29,:]
-    rel_CtD = model.w_relation[49,:]
-    
-    rankings = compute_ranking(embed, rel_T, rel_CtD)
-
-
-
-"""
-#        if (epoch + 1) % 500 == 0:
-        if (epoch + 1) % 5 == 0:
+#        if (epoch + 1) % 5 == 0:
 
             # perform validation on CPU because full graph is too large
-            model = model.cpu()
-            model.eval()
-            print("start eval")
-            embed = model(test_g, test_nids)
-            mrr = calc_mrr(embed, model.w_relation, test_mask, triplets,
-                           batch_size=500, eval_p=args.eval_protocol)
+#            model = model.cpu()
+#            model.eval()
+#            print("start eval")
+#            embed = model(test_g, test_nids)
+#            mrr = calc_mrr(embed, model.w_relation, test_mask, triplets,
+#                           batch_size=500, eval_p=args.eval_protocol)
             # save best model
-            if best_mrr < mrr:
-                best_mrr = mrr
-                th.save({'state_dict': model.state_dict(), 'epoch': epoch}, model_state_file)
+#            if best_mrr < mrr:
+#                best_mrr = mrr
+#                th.save({'state_dict': model.state_dict(), 'epoch': epoch}, model_state_file)
 
-            model = model.to(device)
+#            model = model.to(device)
 
-    print("Start testing:")
-    # use best model checkpoint
-    checkpoint = th.load(model_state_file)
-    model = model.cpu() # test on CPU
-    model.eval()
-    model.load_state_dict(checkpoint['state_dict'])
-    print("Using best epoch: {}".format(checkpoint['epoch']))
-    embed = model(test_g, test_nids)
-    calc_mrr(embed, model.w_relation, test_mask, triplets,
-             batch_size=500, eval_p=args.eval_protocol)
-"""
-    
+#    print("Start testing:")
     # use best model checkpoint
 #    checkpoint = th.load(model_state_file)
 #    model = model.cpu() # test on CPU
 #    model.eval()
 #    model.load_state_dict(checkpoint['state_dict'])
 #    print("Using best epoch: {}".format(checkpoint['epoch']))
-#    embed = model(valid_g, valid_nids)
-#    results = compute_results(embed)
-#    results.to_csv(...)
+#    embed = model(test_g, test_nids)
+#    calc_mrr(embed, model.w_relation, test_mask, triplets,
+#             batch_size=500, eval_p=args.eval_protocol)
+             
+    
+    # Compute metric (hits@k)
+    model = model.cpu() # test on CPU
+    model.eval()
+    print("Using last epoch")
+    embed = model(valid_g, valid_nids)
+    rel_T = model.w_relation[29,:]
+    rel_CtD = model.w_relation[49,:] 
+    rankings = compute_hits(embed, rel_T, rel_CtD)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='RGCN for link prediction')
