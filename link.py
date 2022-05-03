@@ -13,7 +13,7 @@ import torch.nn.functional as F
 from load_drkg import DRKGDataset
 from dgl.dataloading import GraphDataLoader
 
-from link_utils import preprocess, SubgraphIterator, calc_mrr, compute_hits, compute_results
+from link_utils import preprocess, SubgraphIterator, compute_results
 from model import RGCN
 
 class LinkPredict(nn.Module):
@@ -121,16 +121,13 @@ def main(args):
     
     sources, targets = valid_g.edges()
     rels = valid_g.edata["_TYPE"]
-    
     triplets = th.stack([sources,rels,targets], dim=1)
     
     with th.no_grad():
         scores = model.calc_score(embed, triplets)
-    
     scores = scores.numpy()
 
     results = compute_results(raw_dir, scores)
-
     print(results)
     
 
