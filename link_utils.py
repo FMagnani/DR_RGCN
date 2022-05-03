@@ -9,26 +9,24 @@ import dgl
 
 import pandas as pd
 
-
-
-def compute_hits(embed, emb_T, emb_CtD):
+def compute_hits(embed, emb_T, emb_CtD, iteration):
 
     valid_path = "/mnt/raid1/fede/DRKG/"
     valid_df = pd.read_csv(valid_path+"valid_raw.txt", sep='\t', index_col=None, names = ["head_idx", "head_raw", "tail_idx", "tail_raw", "rel"])
-    
+
     half_df = valid_df[:][ valid_df["rel"]=="T" ]
-    
+
     scores = []
     for head_idx, tail_idx in zip(half_df["head_idx"], half_df["tail_idx"]):
         triplet_emb = embed[head_idx] * emb_T * embed[tail_idx]
         score = th.sum(triplet_emb, dim=-1).cpu().detach().numpy()
         scores.append(score)
-        
+
     for head_idx, tail_idx in zip(half_df["head_idx"], half_df["tail_idx"]):
         triplet_emb = embed[head_idx] * emb_CtD * embed[tail_idx]
         score = th.sum(triplet_emb, dim=-1).cpu().detach().numpy()
-        scores.append(score)        
-        
+        scores.append(score)
+
     valid_df["score"] = scores
 
     valid_df["CompoundId"] = valid_df["head_raw"].str.rsplit(pat=":", n=1, expand=True)[1]
@@ -50,8 +48,8 @@ def compute_hits(embed, emb_T, emb_CtD):
     #      ...              ...
     clinical_trial_df = pd.DataFrame()
     clinical_trial_df["CompoundId"] = pd.Series(clinical_trial_id)
-    clinical_trial_df["CompoundName"] = pd.Series(clinical_trial_name)    
-    
+    clinical_trial_df["CompoundName"] = pd.Series(clinical_trial_name)
+
     # You merge but you only retain the entries in common
     # So you basically just filtered the initial "valid_df"
     results = pd.merge(
@@ -75,9 +73,10 @@ def compute_hits(embed, emb_T, emb_CtD):
         "hits50": len(results_hits50.index),
         "hits100": len(results_hits100.index)
     }
-    print(hits_log)
+    print("Iteration "+str(iteration)+"\n", hits_log)
 
-    results_hits100[["CompoundName", "Rank", "score", "tail_raw", "rel"]].to_csv("HitsAt100.csv")
+    name = "HitsAt100__"+str(iteration)+".csv"
+    results_hits100[["CompoundName", "Rank", "score", "tail_raw", "rel"]].to_csv(name)
 
     return 0
 
@@ -143,7 +142,17 @@ class NeighborExpand:
                 node_weights = neighbor_counts * seen_node
 
             node_probs = node_weights / np.sum(node_weights)
-            chosen_node = np.random.choice(self.nids, p=node_probs)
+
+           # I don't know why sometimes p contains NaNs.
+           # I believe it's random. In fact, the algorithm could work for 108 iterations,
+           # then it raised ValueError for p containing NaNs.
+           # I solve catching the exception, setting nans to 0 and renormalizing the vector. 
+           try:
+                chosen_node = np.random.choice(self.nids, p=node_probs)
+            except ValueError:
+                node_probs = np.nan_to_num(node_probs, nan=0.0,posinf=0.0,neginf=0.0) 
+                node_probs = node_probs / np.sum(node_probs)
+                chosen_node = np.random.choice(self.nids, p=node_probs)
 
             # Sample a neighbor of the sampled node
             u1, v1, eid1 = self.g.in_edges(chosen_node, form='all')
