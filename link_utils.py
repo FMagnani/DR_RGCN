@@ -133,13 +133,11 @@ class NeighborExpand:
             # I don't know why sometimes p contains NaNs.
             # I believe it's random. In fact, the algorithm could work for 108 iterations,
             # then it raised ValueError for p containing NaNs.
-            # I solve catching the exception, setting nans to 0 and renormalizing the vector. 
+            # I solve using a uniform probability over all the nodes. 
             try:
                 chosen_node = np.random.choice(self.nids, p=node_probs)
             except ValueError:
-                node_probs = np.nan_to_num(node_probs, nan=0.0,posinf=0.0,neginf=0.0) 
-                node_probs = node_probs / np.sum(node_probs)
-                chosen_node = np.random.choice(self.nids, p=node_probs)
+                chosen_node = np.random.choice(self.nids)
 
             # Sample a neighbor of the sampled node
             u1, v1, eid1 = self.g.in_edges(chosen_node, form='all')
