@@ -18,12 +18,12 @@ def compute_results(raw_dir, scores):
     
     df = pd.read_csv(valid_path, sep='\t', header=None, names = ["CompoundId", "Rel", "Target_Disease"])
     df["score"] = scores
-    
     # Compute Rank wrt to score
-    df = df.sort_values(by="score", axis=0)
-    df.reset_index(inplace=True)
-    df = df.rename(columns={"index":"Rank"})
-    
+    df = df.sort_values(by="score", axis=0, ascending=False) # BEWARE ascending is important
+    df.reset_index(inplace=True, drop=True)  # Remove (old) index, the new index in fact get reset
+    df.reset_index(inplace=True, drop=False) # Move the index into the df with name "index", the new index is equal to it
+    df = df.rename(columns={"index":"Rank"}) # Finally we got it
+            
     # Define the Hits, both idx and name
     clinical_trial_id = ["Compound::DB00746","Compound::DB05511","Compound::DB00678","Compound::DB01050","Compound::DB12466","Compound::DB08877","Compound::DB01234","Compound::DB01041",
     "Compound::DB00302","Compound::DB06273","Compound::DB11767","Compound::DB12580","Compound::DB11720","Compound::DB00198","Compound::DB11817","Compound::DB00020","Compound::DB00608",
@@ -62,9 +62,6 @@ def compute_results(raw_dir, scores):
     }
     print("Results: ", hits_log)
 
-    name = "HitsAt100.csv"
-    results_hits100[["CompoundName", "Rank", "score", "Target_Disease", "Rel"]].to_csv(name)
-
     return results_hits100
 
 
@@ -95,6 +92,7 @@ def preprocess(g, num_rels):
 
     # Get valid graph
     valid_g = get_subset_g(g, g.edata['val_mask'], num_rels, bidirected=False)
+    valid_g.edata['norm'] = dgl.norm_by_dst(valid_g).unsqueeze(-1)
 
     return train_g, test_g, valid_g
 
