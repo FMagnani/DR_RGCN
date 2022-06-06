@@ -1,0 +1,12 @@
+Gene::5621      GpCC    Cellular Component::GO:0031225
+Gene::10752     GpBP    Biological Process::GO:0048870
+Compound::DB01627       ddi-interactor-in       Compound::DB04263
+Compound::DB00268       CcSE    Side Effect::C0042134
+Anatomy::UBERON:0002185 AeG     Gene::90527
+Compound::DB02901       E       Gene::367
+Gene::1236      CATALYSIS       Gene::59340
+Gene::5438      CATALYSIS       Gene::6617
+Gene::1763      REACTION        Gene::675
+Compound::DB00438       CcSE    Side Effect::C0037274
+
+etc    etc    etc
