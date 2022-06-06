@@ -14,7 +14,7 @@ from dgl.dataloading import GraphDataLoader
 from link_utils import preprocess, SubgraphIterator, calc_mrr
 from model import RGCN
 
-from numpy import isnan, load
+import numpy as np
 
 class LinkPredict(nn.Module):
                               # default: h dim 500, num bases 100          0.2            0.01
@@ -53,11 +53,11 @@ class LinkPredict(nn.Module):
 
 def main(args):
 
-    # Set the absolute path to the dataset folder. 
+    # Set the absolute path to the datasets folder. 
     # Inside this folder there must be other folders with the name of the dataset for example "DRKG"
     # The dataset should be formatted into the following files:
     # train.txt, test.txt, valid.txt, entities.dict, relations.dict (all these are tsv)
-    raw_dir = "/mnt/raid1/fede/"
+    raw_dir = "SET PATH"
 
     data = MyDataset(name=args.dataset, reverse=False, raw_dir=raw_dir)
     graph = data[0]
@@ -93,6 +93,7 @@ def main(args):
 
     best_mrr = 0
     model_state_file = 'model_state.pth'    
+    loss_history = []
     for epoch, batch_data in enumerate(dataloader):
         model.train()
 
@@ -103,7 +104,8 @@ def main(args):
         labels = labels.to(device)
 
         embed = model(g, train_nids)
-        loss = model.get_loss(embed, edges, labels)                
+        loss = model.get_loss(embed, edges, labels)      
+        loss_history.append(loss.item())          
         optimizer.zero_grad()
         loss.backward()
         nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0) # clip gradients
@@ -111,7 +113,8 @@ def main(args):
 
         print("Epoch {:04d} | Loss {:.4f} | Best mrr {:.4f}".format(epoch, loss.item(), best_mrr))
 
-        if (epoch+1)%100==0:
+        # Choose the frequency for make the testing. Here it is every 100 epochs.
+        if (epoch+1)%100==0 and args.test=="True":
             
             # perform validation on CPU because full graph is too large
             model = model.cpu()
@@ -128,22 +131,9 @@ def main(args):
 
             model = model.to(device)
 
-            
-    print("Start testing:")
-    # use best model checkpoint
-    checkpoint = th.load(model_state_file)
-    model = model.cpu() # test on CPU
-    model.eval()
-    model.load_state_dict(checkpoint['state_dict'])
-    print("Using best epoch: {}".format(checkpoint['epoch']))
-    embed = model(test_g, test_nids)
-    calc_mrr(embed, model.w_relation, test_mask, triplets,
-             batch_size=500, eval_p=args.eval_protocol)
-
-    # save model if it works
-    if not results.empty:
-        print(results)    
-        th.save({'state_dict': model.state_dict(), 'epoch': epoch}, 'model_state_'+str(epoch)+'.pth')
+    # Save the model and the loss history at the end of the training
+    th.save({'state_dict': model.state_dict(), 'epoch': epoch}, 'model_state_'+str(epoch)+'.pth')
+    np.save('loss_history.npy', loss_history)
 
 
 if __name__ == '__main__':
@@ -157,8 +147,9 @@ if __name__ == '__main__':
                         choices=['uniform', 'neighbor'],
                         help="Type of edge sampler: 'uniform' or 'neighbor'"
                              "The original implementation uses neighbor sampler.")
-    parser.add_argument("--dataset", type=str, default='FB15k-237',
-                        choices=['FB15k-237','DRKG'])
+    parser.add_argument("--dataset", type=str, default='FB15k-237')
+    parser.add_argument("--test", type=str, default="True",
+                        choices=["True", "False"])
 
     args = parser.parse_args()
     print(args)
