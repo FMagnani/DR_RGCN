@@ -1,13 +1,6 @@
 """
 Code adapted from https://github.com/dmlc/dgl/blob/master/examples/pytorch/rgcn/link.py
 
-I tried to:
-- Change the loss function
-- Change the RGCN layer (here imported from 'model'), in particular:
-- - Using only 1 convolution
-- - Using the implementation of PyTorch of the same layer, instead of the implementation of DGL
-- - Transfer learning from the embeddings given by shallow embeddig by DistMult (obtained with DGL-KE)
-But I could not make the model to converge.
 """
 
 import argparse
@@ -18,7 +11,7 @@ import torch.nn.functional as F
 from load_dataset import MyDataset
 from dgl.dataloading import GraphDataLoader
 
-from link_utils import preprocess, SubgraphIterator, calc_mrr, compute_results
+from link_utils import preprocess, SubgraphIterator, calc_mrr
 from model import RGCN
 
 from numpy import isnan, load
@@ -66,7 +59,7 @@ def main(args):
     # train.txt, test.txt, valid.txt, entities.dict, relations.dict (all these are tsv)
     raw_dir = "/mnt/raid1/fede/"
 
-    data = MyDataset(name="DRKG", reverse=False, raw_dir=raw_dir)
+    data = MyDataset(name=args.dataset, reverse=False, raw_dir=raw_dir)
     graph = data[0]
     num_nodes = graph.num_nodes()
     num_rels = data.num_rels
@@ -116,7 +109,7 @@ def main(args):
         nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0) # clip gradients
         optimizer.step()
 
-        print("Epoch {:04d} | Loss {:.4f} | Best hits100 {:.4f}".format(epoch, loss.item(), hits))
+        print("Epoch {:04d} | Loss {:.4f} | Best mrr {:.4f}".format(epoch, loss.item(), best_mrr))
 
         if (epoch+1)%100==0:
             
@@ -164,6 +157,8 @@ if __name__ == '__main__':
                         choices=['uniform', 'neighbor'],
                         help="Type of edge sampler: 'uniform' or 'neighbor'"
                              "The original implementation uses neighbor sampler.")
+    parser.add_argument("--dataset", type=str, default='FB15k-237',
+                        choices=['FB15k-237','DRKG'])
 
     args = parser.parse_args()
     print(args)
