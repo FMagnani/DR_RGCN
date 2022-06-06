@@ -148,7 +148,7 @@ if __name__ == '__main__':
                         help="Type of edge sampler: 'uniform' or 'neighbor'"
                              "The original implementation uses neighbor sampler.")
     parser.add_argument("--dataset", type=str, default='FB15k-237')
-    parser.add_argument("--test", type=str, default="True",
+    parser.add_argument("--test", type=str, default="False",
                         choices=["True", "False"])
 
     args = parser.parse_args()
