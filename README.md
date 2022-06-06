@@ -25,7 +25,9 @@ The other arguments of `link.py` are
 * gpu, that is 0 if there's only one gpu
 * eval-protocol, that slightly changes the protocol for the metric computation
 * edge-sampler, that can be "uniform" or "neighbor" (the latter gave less problems to me)
-* test, which selects if performing or not the test on the test triplets. If the test is not done, you can still check the convergence through the training loss. 
+* test, which selects if performing or not the test on the test triplets. If the test is not done, you can still check the convergence through the training loss.  
+
+At the end of the training, the model and the all the history of the training loss are saved.  
 
 ## Hyperparameters
 There are many hyperparameters that can be chosen.  
