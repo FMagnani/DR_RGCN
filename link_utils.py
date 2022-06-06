@@ -1,69 +1,11 @@
 """
 Utility functions for link prediction
-Most code is adapted from authors' implementation of RGCN link prediction:
-https://github.com/MichSchli/RelationPrediction
+This code is adapted from the RGCN link prediction example of DGL:
+https://github.com/dmlc/dgl/tree/master/examples/pytorch/rgcn
 """
 import numpy as np
 import torch as th
 import dgl
-
-import pandas as pd
-
-
-def compute_results(raw_dir, scores):
-    
-    valid_path = raw_dir+"DRKG/valid.txt"
-    
-    scores = pd.Series(scores)
-    
-    df = pd.read_csv(valid_path, sep='\t', header=None, names = ["CompoundId", "Rel", "Target_Disease"])
-    df["score"] = scores
-    # Compute Rank wrt to score
-    df = df.sort_values(by="score", axis=0, ascending=False) # BEWARE ascending is important
-    df.reset_index(inplace=True, drop=True)  # Remove (old) index, the new index in fact get reset
-    df.reset_index(inplace=True, drop=False) # Move the index into the df with name "index", the new index is equal to it
-    df = df.rename(columns={"index":"Rank"}) # Finally we got it
-            
-    # Define the Hits, both idx and name
-    clinical_trial_id = ["Compound::DB00746","Compound::DB05511","Compound::DB00678","Compound::DB01050","Compound::DB12466","Compound::DB08877","Compound::DB01234","Compound::DB01041",
-    "Compound::DB00302","Compound::DB06273","Compound::DB11767","Compound::DB12580","Compound::DB11720","Compound::DB00198","Compound::DB11817","Compound::DB00020","Compound::DB00608",
-    "Compound::DB00026","Compound::DB12534","Compound::DB00207","Compound::DB14066","Compound::DB00811","Compound::DB08895","Compound::DB09036","Compound::DB09035","Compound::DB00435",
-    "Compound::DB01394","Compound::DB14761","Compound::DB01611","Compound::DB01257","Compound::DB00959"]
-        
-    clinical_trial_name = ["Deferoxamine","Piclidenoson","Losartan","Ibuprofen","Favipiravir","Ruxolitinib","Dexamethasone","Thalidomide","Tranexamic acid","Tocilizumab","Sarilumab",
-    "Tradipitant","Angiotensin_1-7","Oseltamivir","Baricitinib","Sargramostim","Chloroquine","Anakinra","Mavrilimumab","Azithromycin","Tetrandrine","Ribavirin","Tofacitinib","Siltuximab",
-    "Nivolumab","Nitric Oxide","Colchicine","Remdesivir","Hydroxychloroquine","Eculizumab","Methylprednisolone"]
-
-    clinical_trial_df = pd.DataFrame()
-    clinical_trial_df["CompoundId"] = pd.Series(clinical_trial_id)
-    clinical_trial_df["CompoundName"] = pd.Series(clinical_trial_name)
-
-    # You merge but you only retain the entries in common
-    # So you basically just filtered the initial "valid_df"
-    results = pd.merge(
-        clinical_trial_df, df,
-        how='inner',
-        on='CompoundId',
-        sort=False,
-        copy=False
-    )
-
-    results = results.sort_values(by="Rank", axis=0)
-    results = results[["CompoundName", "CompoundId", "Rank", "Rel", "Target_Disease", "score"]]
-
-    results_hits10 = results[results["Rank"]<10]
-    results_hits50 = results[results["Rank"]<50]
-    results_hits100 = results[results["Rank"]<100]
-
-    hits_log = {
-        "hits10": len(results_hits10.index),
-        "hits50": len(results_hits50.index),
-        "hits100": len(results_hits100.index)
-    }
-    print("Results: ", hits_log)
-
-    return results_hits100
-
 
 # Utility function for building training and testing graphs
 
@@ -90,7 +32,7 @@ def preprocess(g, num_rels):
     test_g = get_subset_g(g, g.edata['train_mask'], num_rels, bidirected=True)
     test_g.edata['norm'] = dgl.norm_by_dst(test_g).unsqueeze(-1)
 
-    # Get valid graph
+    # Get valid graph [Fede: I added this]
     valid_g = get_subset_g(g, g.edata['val_mask'], num_rels, bidirected=False)
     valid_g.edata['norm'] = dgl.norm_by_dst(valid_g).unsqueeze(-1)
 
@@ -128,10 +70,11 @@ class NeighborExpand:
 
             node_probs = node_weights / np.sum(node_weights)
 
-            # I don't know why sometimes p contains NaNs.
-            # I believe it's random. In fact, the algorithm could work for 108 iterations,
-            # then it raised ValueError for p containing NaNs.
-            # I solve using a uniform probability over all the nodes. 
+            # Fede:
+            # I don't know why, sometimes p contains NaNs.
+            # I believe it's random. It happens once every 50/100 iterations.
+            # Precisely, it raises ValueError for p containing NaNs.
+            # I solve using a uniform probability over all the nodes, only for that single iteration. 
             try:
                 chosen_node = np.random.choice(self.nids, p=node_probs)
             except ValueError:
@@ -232,7 +175,6 @@ class SubgraphIterator:
         return sub_g, uniq_v, samples, labels
 
 # Utility functions for evaluations (raw)
-
 
 def perturb_and_get_raw_rank(emb, w, a, r, b, test_size, batch_size=100):
     """ Perturb one element in the triplets"""
