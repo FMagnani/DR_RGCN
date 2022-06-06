@@ -1,0 +1,11 @@
+Compound::DB01424       ddi-interactor-in       Compound::DB13592
+Compound::DB01050       ddi-interactor-in       Compound::DB01060
+Gene::9747      GiG     Gene::11043
+Gene::1815      CATALYSIS       Gene::10681
+Gene::176152    Rg      Gene::177570
+Gene::1283      J       Disease::MESH:D001943
+Compound::DB08900       ddi-interactor-in       Compound::DB09163
+Anatomy::UBERON:0002046 AeG     Gene::3705
+Compound::DB01036       ddi-interactor-in       Compound::DB13500
+Compound::DB03585       ddi-interactor-in       Compound::DB09378
+etc     etc      etc
