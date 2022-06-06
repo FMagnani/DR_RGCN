@@ -1,0 +1,11 @@
+Compound::DB00625       ddi-interactor-in       Compound::DB14635
+Anatomy::UBERON:0000998 AeG     Gene::84971
+Gene::6700      BINDING Gene::5493
+Compound::DB00533       ddi-interactor-in       Compound::DB00978
+Gene::8900      OTHER   Gene::56992
+Gene::6504      ASSOCIATION     Gene::79072
+Anatomy::UBERON:0000057 AeG     Gene::8379
+Compound::DB00365       ddi-interactor-in       Compound::DB00679
+Gene::2247      BINDING Gene::2261
+Gene::13649     Te      Disease::MESH:D007414
+etc     etc     etc
