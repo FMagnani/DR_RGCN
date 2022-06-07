@@ -17,6 +17,7 @@ All these files are into a folder, for example into `DRKG` or `FB15k-237`. The n
 `/home/user/projects/DRKG` and `/home/user/projects/FB15k-237`, "raw_dir" is "/home/user/projects" and the name of the dataset is given to `link.py` as an argument.  
 
 ## How to use the script
+The code is based on [DGL (Deep Graph Library)](https://www.dgl.ai/) with PyTorch backend (1.10). Other dependencies are: rdflib, pandas, tqdm, TorchMetrics. There it a yml file for replicating the environment.  
 It's enough to  
 1. Set the "raw_dir" variable in `link.py` (only once) and save the dataset into `raw_dir/name`
 2. Run `python link.py --dataset name`
